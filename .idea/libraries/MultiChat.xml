@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="MultiChat">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/dist/MultiChat.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

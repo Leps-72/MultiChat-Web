@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MultiChat — Chat</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .chat-page { display: flex; flex-direction: column; height: 100vh; }
+    /* Lobby */
+    .lobby-wrap { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 32px 24px; overflow-y: auto; }
+    .lobby-card { width: 100%; max-width: 780px; }
+    .lobby-header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+    .lobby-avatar { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #6366f1, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; }
+
+    /* Chat view */
+    .chat-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .chat-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .chat-room-info { display: flex; align-items: center; gap: 12px; }
+    .chat-room-name { font-weight: 700; font-size: 1.05rem; }
+    .chat-room-sub { font-size: 0.8rem; color: #94a3b8; }
+    .chat-body { flex: 1; display: flex; gap: 0; min-height: 0; }
+    .chat-messages-area {
+      flex: 1; overflow-y: auto; padding: 20px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .chat-messages-area::-webkit-scrollbar { width: 4px; }
+    .chat-messages-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+    .chat-panel {
+      width: 220px; background: rgba(0,0,0,0.3); border-left: 1px solid rgba(255,255,255,0.06);
+      display: flex; flex-direction: column; padding: 16px 12px;
+    }
+    .chat-panel-title { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .member-item-name { font-size: 0.875rem; font-weight: 500; }
+    .chat-input-area {
+      padding: 14px 20px; background: rgba(0,0,0,0.4);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex; gap: 10px; align-items: center;
+    }
+
+    /* Refresh indicator */
+    .refresh-dot-sm { width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: blink2 1.5s infinite; flex-shrink: 0; }
+    @keyframes blink2 { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    @media (max-width: 640px) {
+      .chat-panel { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-animated"></div>
+
+  <div class="chat-page">
+    <!-- Navbar -->
+    <nav class="navbar">
+      <a class="navbar-brand" href="/chat">
+        <div class="navbar-brand-icon">💬</div>
+        <span class="navbar-brand-name">MultiChat</span>
+      </a>
+      <div class="navbar-right">
+        <div class="user-chip">👤 <span id="navUsername">—</span></div>
+        <a href="/logout" class="btn btn-secondary btn-sm">🚪 Thoát</a>
+      </div>
+    </nav>
+
+    <!-- ============ LOBBY VIEW ============ -->
+    <div id="lobbyView" class="lobby-wrap">
+      <div class="lobby-card">
+        <!-- Greeting -->
+        <div class="lobby-header">
+          <div class="lobby-avatar" id="lobbyAvatarChar">?</div>
+          <div>
+            <h2>Chào mừng, <span id="greetUsername" class="gradient-text">bạn</span>! 👋</h2>
+            <p style="color:#94a3b8;font-size:0.9rem;margin-top:4px">Chọn một phòng để bắt đầu trò chuyện</p>
+          </div>
+        </div>
+
+        <!-- Alert -->
+        <div class="alert" id="lobbyAlert" style="margin-bottom:16px"></div>
+
+        <!-- Toolbar -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="font-weight:600;font-size:1rem">🏠 Danh sách phòng <span class="count-badge" id="lobbyRoomCount" style="background:rgba(99,102,241,0.2);color:#a5b4fc;border-radius:20px;padding:2px 10px;font-size:0.78rem;font-weight:700">0</span></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="loadRooms()">🔄 Làm mới</button>
+            <button class="btn btn-primary btn-sm" onclick="showCreateRoom()">➕ Tạo phòng</button>
+          </div>
+        </div>
+
+        <!-- Create room inline -->
+        <div id="createRoomBar" style="display:none;margin-bottom:16px">
+          <div style="display:flex;gap:8px">
+            <input class="form-input" type="text" id="newRoomInput" placeholder="Tên phòng mới..." maxlength="50" style="flex:1">
+            <button class="btn btn-success" onclick="createRoom()">Tạo</button>
+            <button class="btn btn-secondary" onclick="hideCreateRoom()">Hủy</button>
+          </div>
+        </div>
+
+        <!-- Room Grid -->
+        <div id="roomGrid" class="room-grid"></div>
+
+        <!-- Empty state -->
+        <div id="roomEmpty" class="empty-state" style="display:none">
+          <div class="empty-state-icon">🏠</div>
+          <p>Chưa có phòng chat nào.<br>Hãy tạo phòng mới!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CHAT VIEW ============ -->
+    <div id="chatView" class="chat-view" style="display:none">
+      <!-- Chat topbar -->
+      <div class="chat-topbar">
+        <div class="chat-room-info">
+          <div class="refresh-dot-sm"></div>
+          <div>
+            <div class="chat-room-name" id="chatRoomName">Phòng</div>
+            <div class="chat-room-sub" id="chatRoomSub">Đang kết nối...</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:0.8rem;color:#64748b" id="chatPollStatus"></span>
+          <button class="btn btn-secondary btn-sm" onclick="leaveRoom()">← Rời phòng</button>
+        </div>
+      </div>
+
+      <div class="chat-body">
+        <!-- Messages -->
+        <div class="chat-messages-area" id="chatMessages"></div>
+
+        <!-- Members Panel -->
+        <div class="chat-panel">
+          <div class="chat-panel-title">👥 Thành viên online</div>
+          <div class="member-list" id="memberList"></div>
+        </div>
+      </div>
+
+      <!-- Input bar -->
+      <div class="chat-input-area">
+        <input class="chat-input" type="text" id="msgInput" placeholder="Nhập tin nhắn... (Enter để gửi)" maxlength="500">
+        <button class="btn btn-primary" onclick="sendMessage()" id="sendBtn">➤ Gửi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    let currentUser = '';
+    let currentRoom = '';
+    let pollTimer = null;
+    let nextSeq = 0;      // Sequence number cuối đã nhận — gửi lên server mỗi lần poll
+    let isFirstPoll = true;
+
+    // === INIT ===
+    async function init() {
+      loadUsername();
+      loadRooms();
+    }
+
+    function loadUsername() {
+      fetch('/api/me').then(r => r.json()).then(d => {
+        if (d.username) {
+          currentUser = d.username;
+          document.getElementById('navUsername').textContent = d.username;
+          document.getElementById('greetUsername').textContent = d.username;
+          document.getElementById('lobbyAvatarChar').textContent = d.username.charAt(0).toUpperCase();
+        }
+      }).catch(() => {});
+    }
+
+    // === ROOMS ===
+    async function loadRooms() {
+      document.getElementById('roomGrid').innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+      document.getElementById('roomEmpty').style.display = 'none';
+      try {
+        const r = await fetch('/api/rooms'); const rooms = await r.json();
+        document.getElementById('lobbyRoomCount').textContent = rooms.length;
+        if (rooms.length === 0) {
+          document.getElementById('roomGrid').innerHTML = '';
+          document.getElementById('roomEmpty').style.display = 'block';
+          return;
+        }
+        document.getElementById('roomGrid').innerHTML = rooms.map(rm => `
+          <div class="room-card" onclick="joinRoom('${escHtml(rm.name)}')">
+            <div class="room-icon">🏠</div>
+            <div class="room-name">${escHtml(rm.name)}</div>
+            <div class="room-meta">
+              <span>👑 ${escHtml(rm.host || 'N/A')}</span>
+              <span>🟢 ${rm.online} online</span>
+            </div>
+          </div>`).join('');
+      } catch(e) {
+        document.getElementById('roomGrid').innerHTML = '<div class="empty-state"><p>Không thể tải danh sách phòng</p></div>';
+      }
+    }
+
+    function showCreateRoom() {
+      document.getElementById('createRoomBar').style.display = 'flex';
+      setTimeout(() => document.getElementById('newRoomInput').focus(), 50);
+    }
+    function hideCreateRoom() {
+      document.getElementById('createRoomBar').style.display = 'none';
+      document.getElementById('newRoomInput').value = '';
+    }
+
+    async function createRoom() {
+      const name = document.getElementById('newRoomInput').value.trim();
+      if (!name) { showLobbyAlert('Vui lòng nhập tên phòng!'); return; }
+      try {
+        const r = await fetch('/api/rooms/create', {
+          method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'},
+          body: 'room=' + encodeURIComponent(name)
+        });
+        const d = await r.json();
+        if (d.success) { toast('Đã tạo phòng: ' + name); hideCreateRoom(); loadRooms(); }
+        else showLobbyAlert(d.error || 'Tạo phòng thất bại!');
+      } catch(e) { showLobbyAlert('Lỗi kết nối server!'); }
+    }
+
+    // === JOIN / LEAVE ===
+    async function joinRoom(roomName) {
+      await fetch('/api/chat/join', {
+        method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: 'room=' + encodeURIComponent(roomName)
+      }).catch(() => {});
+
+      if (!currentUser) {
+        try { const r = await fetch('/api/me'); const d = await r.json(); currentUser = d.username || 'Bạn'; }
+        catch(e) { currentUser = 'Bạn'; }
+      }
+
+      currentRoom = roomName;
+      nextSeq = 0;        // Reset seq khi vào phòng mới
+      isFirstPoll = true; // Lần đầu: lấy 50 tin gần nhất
+
+      document.getElementById('lobbyView').style.display = 'none';
+      document.getElementById('chatView').style.display = 'flex';
+      document.getElementById('chatRoomName').textContent = '🏠 ' + roomName;
+      document.getElementById('chatRoomSub').textContent = 'Đang kết nối...';
+      document.getElementById('chatMessages').innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+
+      // Poll lần đầu (since=0 → lấy lịch sử từ buffer)
+      await pollMessages();
+      document.getElementById('chatRoomSub').textContent = 'Đã kết nối · HTTP Polling mỗi 1 giây';
+      startPolling();
+      document.getElementById('msgInput').focus();
+    }
+
+    function leaveRoom() {
+      stopPolling();
+      fetch('/api/chat/leave', {
+        method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: 'room=' + encodeURIComponent(currentRoom)
+      }).catch(() => {});
+      currentRoom = '';
+      nextSeq = 0;
+      document.getElementById('chatView').style.display = 'none';
+      document.getElementById('lobbyView').style.display = 'flex';
+      loadRooms();
+    }
+
+    // === POLLING — Trung tâm của cơ chế nhận tin nhắn ===
+    async function pollMessages() {
+      if (!currentRoom) return;
+      try {
+        // Gửi seq cuối đã nhận — server chỉ trả về tin mới hơn
+        const since = isFirstPoll ? 0 : nextSeq;
+        const r = await fetch(`/api/chat/poll?room=${encodeURIComponent(currentRoom)}&since=${since}`);
+        if (!r.ok) return;
+        const data = await r.json();
+
+        // Cập nhật nextSeq để lần poll sau chỉ lấy tin mới hơn
+        if (data.nextSeq !== undefined) nextSeq = data.nextSeq;
+
+        if (data.msgs && data.msgs.length > 0) {
+          renderMessages(data.msgs, isFirstPoll);
+        } else if (isFirstPoll) {
+          // Phòng trống, chưa có tin
+          document.getElementById('chatMessages').innerHTML =
+            '<div class="empty-state"><div class="empty-state-icon">💬</div><p>Chưa có tin nhắn nào.<br>Hãy bắt đầu trò chuyện!</p></div>';
+        }
+
+        isFirstPoll = false;
+      } catch(e) {
+        console.error('Poll error:', e);
+      }
+    }
+
+    /**
+     * Render tin nhắn lên khung chat.
+     * @param msgs    Mảng MsgEntry từ server {seq, sender, text, time}
+     * @param replace true = xóa cũ và vẽ lại (lần đầu vào phòng)
+     *                false = chỉ append tin mới (các lần poll sau)
+     */
+    function renderMessages(msgs, replace) {
+      const area = document.getElementById('chatMessages');
+      if (replace) area.innerHTML = '';
+
+      const wasAtBottom = area.scrollHeight - area.clientHeight <= area.scrollTop + 40;
+
+      msgs.forEach(m => {
+        // Xác định tin của chính mình
+        const isOwn = m.sender === currentUser
+                   || m.sender === ('[Web] ' + currentUser)
+                   || m.sender === ('[Chủ] ' + currentUser);
+
+        // Tên hiển thị (bỏ prefix [Web])
+        const displayName = m.sender.replace('[Web] ', '');
+        const firstChar = displayName.replace('[Chủ] ', '').charAt(0).toUpperCase();
+
+        // Hệ thống
+        if (m.sender === 'Hệ thống' || m.text.startsWith('Hệ thống:')) {
+          const div = document.createElement('div');
+          div.className = 'sys-message';
+          div.innerHTML = `<span>${escHtml(m.text)}</span>`;
+          area.appendChild(div);
+          return;
+        }
+
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble' + (isOwn ? ' own' : '');
+        bubble.innerHTML = `
+          ${!isOwn ? `<div class="avatar avatar-cyan" style="width:32px;height:32px;font-size:0.8rem">${escHtml(firstChar)}</div>` : ''}
+          <div class="bubble-content">
+            ${!isOwn ? `<div class="bubble-sender">${escHtml(displayName)}</div>` : ''}
+            ${escHtml(m.text)}
+            <div class="bubble-time">${escHtml(m.time)}</div>
+          </div>`;
+        area.appendChild(bubble);
+      });
+
+      // Tự cuộn xuống nếu người dùng đang ở gần cuối
+      if (wasAtBottom || replace) area.scrollTop = area.scrollHeight;
+    }
+
+    function startPolling() {
+      stopPolling();
+      pollTimer = setInterval(async () => {
+        await pollMessages();
+        await fetchMembers();
+        document.getElementById('chatPollStatus').textContent = '🔄 ' + new Date().toLocaleTimeString('vi');
+      }, 1000);
+    }
+    function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+    // === GỬI TIN NHẮN ===
+    async function sendMessage() {
+      const input = document.getElementById('msgInput');
+      const msg = input.value.trim();
+      if (!msg || !currentRoom) return;
+      input.value = '';
+      const btn = document.getElementById('sendBtn');
+      btn.disabled = true;
+      try {
+        await fetch('/api/chat/send', {
+          method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'},
+          body: `room=${encodeURIComponent(currentRoom)}&message=${encodeURIComponent(msg)}`
+        });
+        // Poll ngay sau khi gửi để hiện tin mình vừa gửi
+        await pollMessages();
+      } catch(e) { toast('Gửi tin thất bại!', 'error'); }
+      btn.disabled = false;
+      input.focus();
+    }
+
+    // === MEMBERS ===
+    async function fetchMembers() {
+      if (!currentRoom) return;
+      try {
+        const r = await fetch('/api/chat/members?room=' + encodeURIComponent(currentRoom));
+        const members = await r.json();
+        const list = document.getElementById('memberList');
+        if (members.length === 0) {
+          list.innerHTML = '<div style="color:#475569;font-size:0.8rem;padding:8px">Không có TCP client</div>'; return;
+        }
+        list.innerHTML = members.map(m => `
+          <div class="member-item">
+            <div class="online-dot"></div>
+            <span class="member-item-name">${escHtml(m)}</span>
+          </div>`).join('');
+      } catch(e) {}
+    }
+
+    // === HELPERS ===
+    function showLobbyAlert(msg) {
+      const a = document.getElementById('lobbyAlert');
+      a.className = 'alert show alert-error'; a.innerHTML = '⚠️ ' + escHtml(msg);
+    }
+
+    function toast(msg, type = 'success') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = 'toast ' + type;
+      t.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + escHtml(msg);
+      c.appendChild(t);
+      setTimeout(() => { t.style.animation = 'toastOut 0.35s ease forwards'; setTimeout(() => t.remove(), 400); }, 3000);
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Enter to send
+    document.getElementById('msgInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    // Enter to create room
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('createRoomBar').style.display !== 'none'
+          && document.activeElement.id === 'newRoomInput') createRoom();
+    });
+
+    init();
+  </script>
+</body>
+</html>

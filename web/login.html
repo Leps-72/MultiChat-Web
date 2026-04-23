@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MultiChat — Đăng Nhập</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .login-wrapper {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .login-card {
+      width: 100%; max-width: 440px;
+      padding: 48px 40px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(30px);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+      animation: cardIn 0.5s ease;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .logo-area { text-align: center; margin-bottom: 36px; }
+    .logo-icon {
+      width: 72px; height: 72px; margin: 0 auto 16px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; box-shadow: 0 8px 32px rgba(99,102,241,0.4);
+      animation: iconPulse 2s ease-in-out infinite alternate;
+    }
+    @keyframes iconPulse {
+      from { box-shadow: 0 8px 32px rgba(99,102,241,0.4); }
+      to   { box-shadow: 0 12px 40px rgba(99,102,241,0.7); }
+    }
+    .logo-title { font-size: 1.8rem; font-weight: 800; }
+    .logo-sub { color: #94a3b8; font-size: 0.9rem; margin-top: 6px; }
+
+    .tab-switcher {
+      display: flex; background: rgba(0,0,0,0.3); border-radius: 12px;
+      padding: 4px; margin-bottom: 28px;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px; border: none; background: none;
+      color: #94a3b8; font-family: inherit; font-size: 0.9rem; font-weight: 600;
+      border-radius: 9px; cursor: pointer; transition: all 0.25s ease;
+    }
+    .tab-btn.active {
+      background: rgba(99,102,241,0.25); color: #a5b4fc;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.2);
+    }
+
+    .form-panel { display: none; animation: panelIn 0.3s ease; }
+    .form-panel.active { display: flex; flex-direction: column; gap: 16px; }
+    @keyframes panelIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .form-input { font-size: 0.95rem; }
+    .input-icon-wrap { position: relative; }
+    .input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 1rem; pointer-events: none; }
+    .input-icon-wrap .form-input { padding-left: 42px; }
+
+    .divider { display: flex; align-items: center; gap: 12px; color: #475569; font-size: 0.8rem; margin: 4px 0; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+
+    .footer-text { text-align: center; font-size: 0.8rem; color: #64748b; margin-top: 12px; }
+    .server-info {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 24px; padding: 12px; border-radius: 10px;
+      background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);
+      font-size: 0.8rem; color: #6ee7b7;
+    }
+    .server-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: blink 1.5s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
+</head>
+<body>
+  <div class="bg-animated"></div>
+
+  <div class="login-wrapper">
+    <div class="login-card">
+      <!-- Logo -->
+      <div class="logo-area">
+        <div class="logo-icon">💬</div>
+        <h1 class="logo-title gradient-text">MultiChat</h1>
+        <p class="logo-sub">Hệ thống trò chuyện trực tuyến</p>
+      </div>
+
+      <!-- Tab Switcher -->
+      <div class="tab-switcher">
+        <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">🔑 Đăng nhập</button>
+        <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">✨ Đăng ký</button>
+      </div>
+
+      <!-- Alert -->
+      <div class="alert" id="alertBox">
+        <span id="alertIcon">⚠️</span>
+        <span id="alertMsg"></span>
+      </div>
+
+      <!-- Login Form -->
+      <div class="form-panel active" id="panelLogin">
+        <div class="form-group">
+          <label class="form-label">Tên đăng nhập</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">👤</span>
+            <input class="form-input" type="text" id="loginUser" placeholder="Nhập tên đăng nhập..." autocomplete="username">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mật khẩu</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🔒</span>
+            <input class="form-input" type="password" id="loginPass" placeholder="Nhập mật khẩu..." autocomplete="current-password">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg btn-full" id="btnLogin" onclick="doLogin()">
+          <span id="loginBtnText">Đăng nhập</span>
+          <span id="loginSpinner" style="display:none">⏳</span>
+        </button>
+      </div>
+
+      <!-- Register Form -->
+      <div class="form-panel" id="panelRegister">
+        <div class="form-group">
+          <label class="form-label">Tên đăng nhập</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">👤</span>
+            <input class="form-input" type="text" id="regUser" placeholder="Tạo tên đăng nhập..." autocomplete="username">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mật khẩu</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🔒</span>
+            <input class="form-input" type="password" id="regPass" placeholder="Tạo mật khẩu..." autocomplete="new-password">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Xác nhận mật khẩu</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">✅</span>
+            <input class="form-input" type="password" id="regPass2" placeholder="Nhập lại mật khẩu...">
+          </div>
+        </div>
+        <button class="btn btn-success btn-lg btn-full" onclick="doRegister()">
+          ✨ Tạo tài khoản
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <div class="server-info">
+        <div class="server-dot"></div>
+        Server đang hoạt động · MultiChat v2.0
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+      document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+      document.getElementById('panelLogin').classList.toggle('active', tab === 'login');
+      document.getElementById('panelRegister').classList.toggle('active', tab === 'register');
+      hideAlert();
+    }
+
+    function showAlert(msg, type = 'error') {
+      const box = document.getElementById('alertBox');
+      const icon = document.getElementById('alertIcon');
+      const text = document.getElementById('alertMsg');
+      box.className = 'alert show alert-' + type;
+      icon.textContent = type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+      text.textContent = msg;
+    }
+    function hideAlert() { document.getElementById('alertBox').className = 'alert'; }
+
+    function toast(msg, type = 'success') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = 'toast ' + type;
+      t.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + msg;
+      c.appendChild(t);
+      setTimeout(() => { t.style.animation = 'toastOut 0.35s ease forwards'; setTimeout(() => t.remove(), 400); }, 3000);
+    }
+
+    async function doLogin() {
+      const username = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPass').value.trim();
+      if (!username || !password) { showAlert('Vui lòng điền đầy đủ thông tin!'); return; }
+
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+      document.getElementById('loginBtnText').textContent = 'Đang đăng nhập...';
+      document.getElementById('loginSpinner').style.display = 'inline';
+      hideAlert();
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast('Đăng nhập thành công! Chào ' + data.username + ' 👋');
+          setTimeout(() => { window.location.href = data.role === 'admin' ? '/admin' : '/chat'; }, 800);
+        } else {
+          showAlert(data.error || 'Sai tên đăng nhập hoặc mật khẩu!');
+          btn.disabled = false;
+          document.getElementById('loginBtnText').textContent = 'Đăng nhập';
+          document.getElementById('loginSpinner').style.display = 'none';
+        }
+      } catch (e) {
+        showAlert('Không thể kết nối server!');
+        btn.disabled = false;
+        document.getElementById('loginBtnText').textContent = 'Đăng nhập';
+        document.getElementById('loginSpinner').style.display = 'none';
+      }
+    }
+
+    async function doRegister() {
+      const username = document.getElementById('regUser').value.trim();
+      const password = document.getElementById('regPass').value.trim();
+      const password2 = document.getElementById('regPass2').value.trim();
+      if (!username || !password) { showAlert('Vui lòng điền đầy đủ thông tin!'); return; }
+      if (password !== password2) { showAlert('Mật khẩu xác nhận không khớp!'); return; }
+      if (username.length < 3) { showAlert('Tên đăng nhập phải có ít nhất 3 ký tự!'); return; }
+      if (password.length < 3) { showAlert('Mật khẩu phải có ít nhất 3 ký tự!'); return; }
+      hideAlert();
+
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast('Đăng ký thành công! Hãy đăng nhập.');
+          setTimeout(() => switchTab('login'), 1000);
+          document.getElementById('loginUser').value = username;
+        } else {
+          showAlert(data.error || 'Đăng ký thất bại!');
+        }
+      } catch (e) { showAlert('Không thể kết nối server!'); }
+    }
+
+    // Enter key support
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        if (document.getElementById('panelLogin').classList.contains('active')) doLogin();
+        else doRegister();
+      }
+    });
+  </script>
+</body>
+</html>

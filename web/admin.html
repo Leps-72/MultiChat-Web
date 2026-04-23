@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MultiChat — Admin Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .refresh-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3);
+      color: #34d399; padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+    }
+    .refresh-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; animation: blink 1.5s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .panel-title { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .count-badge {
+      background: rgba(99,102,241,0.2); color: #a5b4fc;
+      border-radius: 20px; padding: 2px 10px; font-size: 0.78rem; font-weight: 700;
+    }
+    .action-col { display: flex; gap: 8px; }
+    .no-data { padding: 24px; text-align: center; color: #475569; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="bg-animated"></div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a class="navbar-brand" href="/admin">
+      <div class="navbar-brand-icon">💬</div>
+      <span class="navbar-brand-name">MultiChat</span>
+      <span class="badge badge-admin" style="margin-left:8px">ADMIN</span>
+    </a>
+    <div class="navbar-right">
+      <div class="refresh-badge"><div class="refresh-dot"></div> Live</div>
+      <div class="user-chip">👤 <span id="navUsername">Admin</span></div>
+      <a href="/logout" class="btn btn-secondary btn-sm">🚪 Đăng xuất</a>
+    </div>
+  </nav>
+
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-section">Tổng quan</div>
+      <button class="sidebar-link active" id="navDashboard" onclick="showSection('dashboard')">
+        <span class="sidebar-icon">📊</span> Dashboard
+      </button>
+
+      <div class="sidebar-section">Quản lý</div>
+      <button class="sidebar-link" id="navRooms" onclick="showSection('rooms')">
+        <span class="sidebar-icon">🏠</span> Phòng chat
+      </button>
+      <button class="sidebar-link" id="navUsers" onclick="showSection('users')">
+        <span class="sidebar-icon">👥</span> User online
+      </button>
+
+      <div class="sidebar-section">Hệ thống</div>
+      <button class="sidebar-link" id="navLogs" onclick="showSection('logs')">
+        <span class="sidebar-icon">📋</span> System Log
+      </button>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+
+      <!-- === DASHBOARD === -->
+      <div class="page-section active" id="sectionDashboard">
+        <div class="section-header">
+          <div class="section-title"><span class="section-icon">📊</span> Tổng quan hệ thống</div>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom: 28px">
+          <div class="stat-card primary">
+            <div class="stat-icon">👥</div>
+            <div class="stat-value" id="statTotalUsers">—</div>
+            <div class="stat-label">Tổng tài khoản</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-icon">🟢</div>
+            <div class="stat-value" id="statOnline">—</div>
+            <div class="stat-label">Đang online</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-icon">🏠</div>
+            <div class="stat-value" id="statRooms">—</div>
+            <div class="stat-label">Phòng chat</div>
+          </div>
+          <div class="stat-card info">
+            <div class="stat-icon">💬</div>
+            <div class="stat-value" id="statMsgsToday">—</div>
+            <div class="stat-label">Tin nhắn hôm nay</div>
+          </div>
+        </div>
+
+        <!-- Log nhanh trên dashboard -->
+        <div class="glass" style="padding: 20px">
+          <div class="panel-header">
+            <div class="panel-title"><span>📋</span> Nhật ký hoạt động (realtime)</div>
+            <button class="btn btn-secondary btn-sm" onclick="clearLogDisplay()">🗑️ Xóa hiển thị</button>
+          </div>
+          <div class="log-terminal" id="dashLog"></div>
+        </div>
+      </div>
+
+      <!-- === ROOMS === -->
+      <div class="page-section" id="sectionRooms">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="section-icon">🏠</span> Quản lý phòng chat
+            <span class="count-badge" id="roomCount">0</span>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="showCreateRoomModal()">➕ Tạo phòng</button>
+        </div>
+
+        <div class="glass" style="padding: 0; overflow: hidden">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tên phòng</th>
+                  <th>Chủ phòng</th>
+                  <th>Online</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="roomTableBody">
+                <tr><td colspan="5" class="no-data">⏳ Đang tải...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- === USERS ONLINE === -->
+      <div class="page-section" id="sectionUsers">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="section-icon">👥</span> User đang online
+            <span class="count-badge" id="userCount">0</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="fetchUsers()">🔄 Làm mới</button>
+        </div>
+
+        <div class="glass" style="padding: 0; overflow: hidden">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tài khoản</th>
+                  <th>Đang ở phòng</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody">
+                <tr><td colspan="4" class="no-data">⏳ Đang tải...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- === LOGS === -->
+      <div class="page-section" id="sectionLogs">
+        <div class="section-header">
+          <div class="section-title"><span class="section-icon">📋</span> System Log</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="fetchLogs()">🔄 Làm mới</button>
+            <button class="btn btn-secondary btn-sm" onclick="clearLogDisplay()">🗑️ Xóa</button>
+          </div>
+        </div>
+        <div class="glass" style="padding: 20px">
+          <div class="log-terminal" id="fullLog" style="height: 500px"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Create Room Modal (simple overlay) -->
+  <div id="modalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:200; display:none; align-items:center; justify-content:center;">
+    <div class="glass" style="padding:32px; min-width:360px; border-radius:20px">
+      <h3 style="margin-bottom:20px">➕ Tạo phòng mới</h3>
+      <div class="form-group" style="margin-bottom:20px">
+        <label class="form-label">Tên phòng chat</label>
+        <input class="form-input" type="text" id="newRoomName" placeholder="Nhập tên phòng..." maxlength="50">
+      </div>
+      <div style="display:flex; gap:10px">
+        <button class="btn btn-primary btn-full" onclick="createRoom()">Tạo phòng</button>
+        <button class="btn btn-secondary btn-full" onclick="hideModal()">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    let logLines = [];
+    let autoRefreshTimer;
+
+    // === NAVIGATION ===
+    function showSection(name) {
+      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+      document.getElementById('section' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+      document.getElementById('nav' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+    }
+
+    // === INIT ===
+    async function init() {
+      await fetchStats();
+      await fetchLogs();
+      await fetchRooms();
+      await fetchUsers();
+      autoRefreshTimer = setInterval(refresh, 2000);
+    }
+
+    async function refresh() {
+      await fetchStats();
+      await fetchLogs();
+      // Làm mới bảng tương ứng section đang hiển thị
+      if (document.getElementById('sectionUsers').classList.contains('active')) fetchUsers();
+      if (document.getElementById('sectionRooms').classList.contains('active')) fetchRooms();
+    }
+
+    // === STATS ===
+    async function fetchStats() {
+      try {
+        const r = await fetch('/api/stats'); const d = await r.json();
+        document.getElementById('statTotalUsers').textContent = d.totalUsers;
+        document.getElementById('statOnline').textContent = d.onlineNow;
+        document.getElementById('statRooms').textContent = d.totalRooms;
+        document.getElementById('statMsgsToday').textContent = d.totalMsgsToday;
+      } catch(e) {}
+    }
+
+    // === ROOMS ===
+    async function fetchRooms() {
+      try {
+        const r = await fetch('/api/rooms'); const rooms = await r.json();
+        document.getElementById('roomCount').textContent = rooms.length;
+        const tbody = document.getElementById('roomTableBody');
+        if (rooms.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="no-data">Chưa có phòng nào</td></tr>'; return;
+        }
+        tbody.innerHTML = rooms.map((rm, i) => `
+          <tr>
+            <td style="color:#64748b">${i+1}</td>
+            <td><strong>${escHtml(rm.name)}</strong></td>
+            <td><span class="badge badge-host">👑 ${escHtml(rm.host || 'N/A')}</span></td>
+            <td><span class="badge badge-online">🟢 ${rm.online}</span></td>
+            <td class="action-col">
+              <button class="btn btn-danger btn-sm" onclick="deleteRoom('${escHtml(rm.name)}')">🗑️ Xóa</button>
+            </td>
+          </tr>`).join('');
+      } catch(e) {}
+    }
+
+    async function deleteRoom(name) {
+      if (!confirm('Xóa phòng "' + name + '"? Mọi người trong phòng sẽ bị ngắt kết nối.')) return;
+      try {
+        const r = await fetch('/api/rooms/delete', {
+          method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'},
+          body: 'room=' + encodeURIComponent(name)
+        });
+        const d = await r.json();
+        if (d.success) { toast('Đã xóa phòng: ' + name); fetchRooms(); fetchStats(); }
+        else toast('Lỗi: ' + d.error, 'error');
+      } catch(e) { toast('Lỗi kết nối', 'error'); }
+    }
+
+    function showCreateRoomModal() {
+      document.getElementById('modalOverlay').style.display = 'flex';
+      setTimeout(() => document.getElementById('newRoomName').focus(), 100);
+    }
+    function hideModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+
+    async function createRoom() {
+      const name = document.getElementById('newRoomName').value.trim();
+      if (!name) { toast('Vui lòng nhập tên phòng!', 'error'); return; }
+      try {
+        const r = await fetch('/api/rooms/create', {
+          method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'},
+          body: 'room=' + encodeURIComponent(name)
+        });
+        const d = await r.json();
+        if (d.success) { toast('Đã tạo phòng: ' + name); hideModal(); document.getElementById('newRoomName').value=''; fetchRooms(); fetchStats(); }
+        else toast('Lỗi: ' + d.error, 'error');
+      } catch(e) { toast('Lỗi kết nối', 'error'); }
+    }
+
+    // === USERS ===
+    async function fetchUsers() {
+      try {
+        const r = await fetch('/api/users'); const users = await r.json();
+        document.getElementById('userCount').textContent = users.length;
+        const tbody = document.getElementById('userTableBody');
+        if (users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="no-data">Không có ai online</td></tr>'; return;
+        }
+        tbody.innerHTML = users.map((u, i) => `
+          <tr>
+            <td style="color:#64748b">${i+1}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="avatar avatar-purple">${escHtml(u.username.charAt(0).toUpperCase())}</div>
+                <strong>${escHtml(u.username)}</strong>
+              </div>
+            </td>
+            <td><span class="badge badge-online">🏠 ${escHtml(u.room)}</span></td>
+            <td>
+              <button class="btn btn-danger btn-sm" onclick="kickUser('${escHtml(u.username)}')">⚡ Kick</button>
+            </td>
+          </tr>`).join('');
+      } catch(e) {}
+    }
+
+    async function kickUser(username) {
+      if (!confirm('Kick user "' + username + '" ra khỏi hệ thống?')) return;
+      try {
+        const r = await fetch('/api/users/kick', {
+          method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'},
+          body: 'username=' + encodeURIComponent(username)
+        });
+        const d = await r.json();
+        if (d.success) { toast('Đã kick: ' + username); fetchUsers(); }
+        else toast('Lỗi: ' + d.error, 'error');
+      } catch(e) { toast('Lỗi kết nối', 'error'); }
+    }
+
+    // === LOGS ===
+    let knownLogCount = 0;
+    async function fetchLogs() {
+      try {
+        const r = await fetch('/api/logs'); const logs = await r.json();
+        if (logs.length === knownLogCount) return;
+        knownLogCount = logs.length;
+        renderLogs(logs);
+      } catch(e) {}
+    }
+
+    function renderLogs(logs) {
+      const areas = ['dashLog', 'fullLog'];
+      areas.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = logs.map(line => {
+          const cls = line.includes('ERROR') ? 'error' : line.includes('[HTTP]') || line.includes('[HỆ THỐNG]') ? 'info' : '';
+          return `<div class="log-entry ${cls}">${escHtml(line)}</div>`;
+        }).join('');
+        el.scrollTop = el.scrollHeight;
+      });
+    }
+
+    function clearLogDisplay() {
+      ['dashLog','fullLog'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML=''; });
+    }
+
+    // === HELPERS ===
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function toast(msg, type = 'success') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = 'toast ' + type;
+      t.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + escHtml(msg);
+      c.appendChild(t);
+      setTimeout(() => { t.style.animation = 'toastOut 0.35s ease forwards'; setTimeout(() => t.remove(), 400); }, 3000);
+    }
+
+    // Enter key for modal
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('modalOverlay').style.display !== 'none') createRoom();
+      if (e.key === 'Escape') hideModal();
+    });
+
+    // Close modal on overlay click
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+      if (e.target === this) hideModal();
+    });
+
+    init();
+  </script>
+</body>
+</html>
