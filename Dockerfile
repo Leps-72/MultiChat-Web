@@ -35,8 +35,6 @@ COPY init_db.sql ./
 COPY start.sh ./
 RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
 
-# Copy SQL Server driver (if available, optional)
-COPY --from=builder /app/lib ./lib 2>/dev/null || true
 
 # Set CLASSPATH to include PostgreSQL driver
 ENV CLASSPATH=/app/classes:/app/lib/*:/app/lib/postgresql-42.7.1.jar
