@@ -19,7 +19,7 @@ RUN mkdir -p lib && \
     curl -L https://jdbc.postgresql.org/download/postgresql-42.7.1.jar -o lib/postgresql-42.7.1.jar
 
 # Build project with Ant
-RUN ant clean build
+RUN ant clean jar
 
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre
