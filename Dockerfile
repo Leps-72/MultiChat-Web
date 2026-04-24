@@ -6,20 +6,18 @@ FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 
 # Install build tools
-RUN apt-get update && apt-get install -y ant curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy source and build files
-COPY build.xml .
-COPY nbproject ./nbproject
+# Copy source and web files
 COPY src ./src
 COPY web ./web
 
 # Download PostgreSQL JDBC driver
-RUN mkdir -p lib && \
+RUN mkdir -p lib build/classes && \
     curl -L https://jdbc.postgresql.org/download/postgresql-42.7.1.jar -o lib/postgresql-42.7.1.jar
 
-# Build project with Ant
-RUN ant clean jar
+# Compile the project directly with javac
+RUN javac -d build/classes -sourcepath src -cp lib/postgresql-42.7.1.jar src/multichat/*.java
 
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre
