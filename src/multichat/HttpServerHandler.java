@@ -212,12 +212,12 @@ public class HttpServerHandler {
         }
         
         long now = System.currentTimeMillis();
-        for (SessionManager.SessionInfo si : SessionManager.getAllSessions()) {
-            if (now - si.lastPollTime < 5000) { // Chỉ đếm web user active
+        for (SessionManager.SessionInfo sessionInfo : SessionManager.getAllSessions()) {
+            if (now - sessionInfo.lastPollTime < 5000) { // Chỉ đếm web user active
                 if (!first) sb.append(",");
                 first = false;
-                String uname = escapeJson(si.username + " (Web)");
-                String room = escapeJson(si.currentRoom != null ? si.currentRoom : "Đang chọn phòng");
+                String uname = escapeJson(sessionInfo.username + " (Web)");
+                String room = escapeJson(sessionInfo.currentRoom != null ? sessionInfo.currentRoom : "Đang chọn phòng");
                 sb.append("{\"username\":\"").append(uname)
                   .append("\",\"room\":\"").append(room).append("\"}");
             }
@@ -253,8 +253,8 @@ public class HttpServerHandler {
         } catch (Exception e) { e.printStackTrace(); }
         int onlineNow = MultiChatServer.onlineUsers.size();
         long now = System.currentTimeMillis();
-        for (SessionManager.SessionInfo si : SessionManager.getAllSessions()) {
-            if (now - si.lastPollTime < 5000) {
+        for (SessionManager.SessionInfo sessionInfo : SessionManager.getAllSessions()) {
+            if (now - sessionInfo.lastPollTime < 5000) {
                 onlineNow++;
             }
         }
@@ -417,11 +417,11 @@ public class HttpServerHandler {
             }
             
             long now = System.currentTimeMillis();
-            for (SessionManager.SessionInfo si : SessionManager.getAllSessions()) {
-                if (room.equals(si.currentRoom) && (now - si.lastPollTime < 5000)) {
+            for (SessionManager.SessionInfo sessionInfo : SessionManager.getAllSessions()) {
+                if (room.equals(sessionInfo.currentRoom) && (now - sessionInfo.lastPollTime < 5000)) {
                     if (!first) sb.append(",");
                     first = false;
-                    sb.append("\"").append(escapeJson(si.username + " (Web)")).append("\"");
+                    sb.append("\"").append(escapeJson(sessionInfo.username + " (Web)")).append("\"");
                 }
             }
         }
