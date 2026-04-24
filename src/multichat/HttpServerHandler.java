@@ -185,7 +185,7 @@ public class HttpServerHandler {
                     // Thêm số lượng Web Users đang online trong phòng này
                     long now = System.currentTimeMillis();
                     for (SessionManager.SessionInfo session : SessionManager.getAllSessions()) {
-                        if (currentRoomName.equals(session.currentRoom) && (now - session.lastPollTime < 5000)) {
+                        if (currentRoomName.equals(session.currentRoom) && (now - session.lastPollTime < 3000)) {
                             onlineCount++;
                         }
                     }
@@ -214,7 +214,7 @@ public class HttpServerHandler {
         
         long now = System.currentTimeMillis();
         for (SessionManager.SessionInfo sessionInfo : SessionManager.getAllSessions()) {
-            if (now - sessionInfo.lastPollTime < 5000) { // Chỉ đếm web user active
+            if (now - sessionInfo.lastPollTime < 3000) { // Chỉ đếm web user active
                 if (!first) sb.append(",");
                 first = false;
                 String uname = escapeJson(sessionInfo.username + " (Web)");
@@ -260,7 +260,7 @@ public class HttpServerHandler {
         }
         long now = System.currentTimeMillis();
         for (SessionManager.SessionInfo sessionInfo : SessionManager.getAllSessions()) {
-            if (now - sessionInfo.lastPollTime < 5000) {
+            if (now - sessionInfo.lastPollTime < 3000) {
                 onlineNow++;
             }
         }
@@ -279,6 +279,12 @@ public class HttpServerHandler {
             ps.setString(1, roomName); ps.executeUpdate();
         } catch (Exception e) { sendJson(ex, 500, "{\"error\":\"" + escapeJson(e.getMessage()) + "\"}"); return; }
         server.loadRoomsFromDB();
+        for (ClientHandler h : MultiChatServer.onlineUsers) {
+            if (roomName.equals(h.getCurrentRoom())) {
+                h.sendMessage("ROOM_DELETED|Phòng đã bị Admin xóa");
+                h.handleLeave();
+            }
+        }
         server.broadcastRoomList();
         sendJson(ex, 200, "{\"success\":true}");
     }
@@ -308,16 +314,23 @@ public class HttpServerHandler {
     private void apiKickUser(HttpExchange ex) throws IOException {
         if (!requireAdmin(ex)) return;
         Map<String, String> body = parseFormBody(ex);
-        String targetName = body.getOrDefault("username", "");
+        String targetNameRaw = body.getOrDefault("username", "");
+        String targetName = targetNameRaw.replace(" (Web)", "").replace(" (App)", "");
+
+        boolean found = SessionManager.removeSessionsByUsername(targetName);
         for (ClientHandler h : MultiChatServer.onlineUsers) {
             if (h.getUsername().equals(targetName)) {
                 h.kickByAdmin();
-                server.log("[ADMIN] Đã kick user: " + targetName);
-                sendJson(ex, 200, "{\"success\":true}");
-                return;
+                found = true;
             }
         }
-        sendJson(ex, 404, "{\"error\":\"Không tìm thấy user online\"}");
+        
+        if (found) {
+            server.log("[ADMIN] Đã kick user: " + targetNameRaw);
+            sendJson(ex, 200, "{\"success\":true}");
+        } else {
+            sendJson(ex, 404, "{\"error\":\"Không tìm thấy user online\"}");
+        }
     }
 
     /**
@@ -348,8 +361,8 @@ public class HttpServerHandler {
 
         Room r = MultiChatServer.rooms.get(room);
         if (r == null) {
-            // Phòng chưa tồn tại trong bộ nhớ (có thể mới tạo)
-            sendJson(ex, 200, "{\"msgs\":[],\"nextSeq\":0}");
+            // Phòng đã bị xóa (hoặc không tồn tại)
+            sendJson(ex, 404, "{\"error\":\"ROOM_DELETED\"}");
             return;
         }
 
@@ -424,7 +437,7 @@ public class HttpServerHandler {
             
             long now = System.currentTimeMillis();
             for (SessionManager.SessionInfo sessionInfo : SessionManager.getAllSessions()) {
-                if (room.equals(sessionInfo.currentRoom) && (now - sessionInfo.lastPollTime < 5000)) {
+                if (room.equals(sessionInfo.currentRoom) && (now - sessionInfo.lastPollTime < 3000)) {
                     if (!first) sb.append(",");
                     first = false;
                     sb.append("\"").append(escapeJson(sessionInfo.username + " (Web)")).append("\"");

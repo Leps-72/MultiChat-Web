@@ -53,6 +53,11 @@ public class SessionManager {
         return si;
     }
 
+    /** Cưỡng chế xóa session theo tên đăng nhập (dùng cho Admin Kick) */
+    public static boolean removeSessionsByUsername(String username) {
+        return sessions.entrySet().removeIf(entry -> entry.getValue().username.equals(username));
+    }
+
     /** Xóa session khi logout */
     public static void removeSession(String token) {
         sessions.remove(token);

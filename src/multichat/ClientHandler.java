@@ -164,7 +164,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private void handleLeave() {
+    public void handleLeave() {
         if (currentRoom != null) {
             MultiChatServer.rooms.get(currentRoom).clients.remove(this);
             currentRoom = null;
