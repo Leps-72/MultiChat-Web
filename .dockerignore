@@ -1,0 +1,17 @@
+.git/
+.idea/
+*.iml
+*.log
+build/
+dist/
+nbproject/private/
+.gitignore
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.local
+*.swp
+*.swo
+*~

@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: multichat-db
+    environment:
+      POSTGRES_DB: multichat
+      POSTGRES_USER: multichat
+      POSTGRES_PASSWORD: multichat123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - multichat-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U multichat -d multichat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MultiChat Server
+  app:
+    build: .
+    container_name: multichat-app
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: multichat
+      DB_USER: multichat
+      DB_PASS: multichat123
+    ports:
+      - "5000:5000"  # TCP Socket server
+      - "8080:8080"  # HTTP Web server
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - multichat-network
+    volumes:
+      - ./web:/app/web
+
+volumes:
+  postgres_data:
+
+networks:
+  multichat-network:
+    driver: bridge

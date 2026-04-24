@@ -1,0 +1,64 @@
+# Multi-stage build for MultiChat - Java Chat Application
+
+# Stage 1: Build with Maven/Ant
+FROM eclipse-temurin:21-jdk AS builder
+
+WORKDIR /app
+
+# Install build tools
+RUN apt-get update && apt-get install -y ant curl && rm -rf /var/lib/apt/lists/*
+
+# Copy source and build files
+COPY build.xml .
+COPY nbproject ./nbproject
+COPY src ./src
+COPY web ./web
+
+# Download PostgreSQL JDBC driver
+RUN mkdir -p lib && \
+    curl -L https://jdbc.postgresql.org/download/postgresql-42.7.1.jar -o lib/postgresql-42.7.1.jar
+
+# Build project with Ant
+RUN ant clean build
+
+# Stage 2: Runtime
+FROM eclipse-temurin:21-jre
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y curl postgresql-client && rm -rf /var/lib/apt/lists/*
+
+# Copy compiled classes and resources from builder
+COPY --from=builder /app/build/classes ./classes
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/web ./web
+COPY init_db.sql ./
+COPY start.sh ./
+RUN chmod +x start.sh
+
+# Copy SQL Server driver (if available, optional)
+COPY --from=builder /app/lib ./lib 2>/dev/null || true
+
+# Set CLASSPATH to include PostgreSQL driver
+ENV CLASSPATH=/app/classes:/app/lib/*:/app/lib/postgresql-42.7.1.jar
+
+# Expose ports
+EXPOSE 8080
+
+# Set environment variables for cloud deployment
+ENV PORT=8080 \
+    DB_TYPE=postgresql \
+    DB_HOST=localhost \
+    DB_PORT=5432 \
+    DB_NAME=multichat \
+    DB_USER=multichat \
+    DB_PASS=multichat123 \
+    JAVA_OPTS="-Dcom.sun.net.httpserver.maxConnections=1000 -Xmx512m"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/ || exit 1
+
+# Run application via startup script
+CMD ["/app/start.sh"]
