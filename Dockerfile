@@ -35,7 +35,7 @@ COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/web ./web
 COPY init_db.sql ./
 COPY start.sh ./
-RUN chmod +x start.sh
+RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
 
 # Copy SQL Server driver (if available, optional)
 COPY --from=builder /app/lib ./lib 2>/dev/null || true
