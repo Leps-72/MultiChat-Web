@@ -1,5 +1,4 @@
 services:
-  # Web HTTP Server
   - type: web
     name: multichat-web
     runtime: docker
@@ -11,33 +10,26 @@ services:
       - key: PORT
         value: 8080
       - key: DB_HOST
-        fromService:
-          type: pserv
+        fromDatabase:
           name: multichat-db
           property: host
       - key: DB_PORT
-        fromService:
-          type: pserv
+        fromDatabase:
           name: multichat-db
           property: port
       - key: DB_NAME
-        value: multichat
+        fromDatabase:
+          name: multichat-db
+          property: database
       - key: DB_USER
-        fromService:
-          type: pserv
+        fromDatabase:
           name: multichat-db
-          envVarKey: PGUSER
+          property: user
       - key: DB_PASS
-        fromService:
-          type: pserv
+        fromDatabase:
           name: multichat-db
-          envVarKey: PGPASSWORD
-    routes:
-      - type: http
-        source: /
+          property: password
 
-  # PostgreSQL Database
-  - type: pserv
-    name: multichat-db
+databases:
+  - name: multichat-db
     plan: free
-    ipAllowList: []
