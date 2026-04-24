@@ -155,6 +155,7 @@
     let pollTimer = null;
     let nextSeq = 0;      // Sequence number cuối đã nhận — gửi lên server mỗi lần poll
     let isFirstPoll = true;
+    let isPollingNow = false;
 
     // === INIT ===
     async function init() {
@@ -237,6 +238,7 @@
       currentRoom = roomName;
       nextSeq = 0;        // Reset seq khi vào phòng mới
       isFirstPoll = true; // Lần đầu: lấy 50 tin gần nhất
+      isPollingNow = false;
 
       document.getElementById('lobbyView').style.display = 'none';
       document.getElementById('chatView').style.display = 'flex';
@@ -259,6 +261,7 @@
       }).catch(() => {});
       currentRoom = '';
       nextSeq = 0;
+      isPollingNow = false;
       document.getElementById('chatView').style.display = 'none';
       document.getElementById('lobbyView').style.display = 'flex';
       loadRooms();
@@ -266,7 +269,8 @@
 
     // === POLLING — Trung tâm của cơ chế nhận tin nhắn ===
     async function pollMessages() {
-      if (!currentRoom) return;
+      if (!currentRoom || isPollingNow) return;
+      isPollingNow = true;
       try {
         // Gửi seq cuối đã nhận — server chỉ trả về tin mới hơn
         const since = isFirstPoll ? 0 : nextSeq;
@@ -288,6 +292,8 @@
         isFirstPoll = false;
       } catch(e) {
         console.error('Poll error:', e);
+      } finally {
+        isPollingNow = false;
       }
     }
 
