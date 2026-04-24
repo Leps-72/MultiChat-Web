@@ -17,12 +17,20 @@ public class SessionManager {
         public final String username;
         public final String role; // "admin" hoặc "user"
         public long lastAccess;
+        public String currentRoom;
+        public long lastPollTime;
 
         public SessionInfo(String username, String role) {
             this.username = username;
             this.role = role;
             this.lastAccess = System.currentTimeMillis();
+            this.lastPollTime = System.currentTimeMillis();
         }
+    }
+
+    /** Trả về danh sách tất cả các session đang hoạt động */
+    public static Collection<SessionInfo> getAllSessions() {
+        return sessions.values();
     }
 
     /** Tạo session mới sau khi đăng nhập thành công */

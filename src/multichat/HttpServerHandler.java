@@ -178,8 +178,17 @@ public class HttpServerHandler {
                     String rName = escapeJson(rs.getString("room_name"));
                     String host = escapeJson(rs.getString("host_name") != null ? rs.getString("host_name") : "");
                     // Đếm user online trong phòng
-                    Room room = MultiChatServer.rooms.get(rs.getString("room_name"));
+                    String currentRoomName = rs.getString("room_name");
+                    Room room = MultiChatServer.rooms.get(currentRoomName);
                     int onlineCount = room != null ? room.clients.size() : 0;
+                    
+                    // Thêm số lượng Web Users đang online trong phòng này
+                    long now = System.currentTimeMillis();
+                    for (SessionManager.SessionInfo session : SessionManager.getAllSessions()) {
+                        if (currentRoomName.equals(session.currentRoom) && (now - session.lastPollTime < 5000)) {
+                            onlineCount++;
+                        }
+                    }
                     sb.append("{\"name\":\"").append(rName)
                       .append("\",\"host\":\"").append(host)
                       .append("\",\"online\":").append(onlineCount).append("}");
@@ -200,6 +209,18 @@ public class HttpServerHandler {
             String room = escapeJson(h.getCurrentRoom() != null ? h.getCurrentRoom() : "Đang chọn phòng");
             sb.append("{\"username\":\"").append(uname)
               .append("\",\"room\":\"").append(room).append("\"}");
+        }
+        
+        long now = System.currentTimeMillis();
+        for (SessionManager.SessionInfo si : SessionManager.getAllSessions()) {
+            if (now - si.lastPollTime < 5000) { // Chỉ đếm web user active
+                if (!first) sb.append(",");
+                first = false;
+                String uname = escapeJson(si.username + " (Web)");
+                String room = escapeJson(si.currentRoom != null ? si.currentRoom : "Đang chọn phòng");
+                sb.append("{\"username\":\"").append(uname)
+                  .append("\",\"room\":\"").append(room).append("\"}");
+            }
         }
         sb.append("]");
         sendJson(ex, 200, sb.toString());
@@ -226,11 +247,17 @@ public class HttpServerHandler {
                 if (rs1.next()) totalUsers = rs1.getInt(1);
                 ResultSet rs2 = conn.createStatement().executeQuery("SELECT COUNT(*) FROM rooms");
                 if (rs2.next()) totalRooms = rs2.getInt(1);
-                ResultSet rs3 = conn.createStatement().executeQuery("SELECT COUNT(*) FROM chat_logs WHERE CAST(sent_at AS DATE) = CAST(GETDATE() AS DATE)");
+                ResultSet rs3 = conn.createStatement().executeQuery("SELECT COUNT(*) FROM chat_logs WHERE CAST(sent_at AS DATE) = CURRENT_DATE");
                 if (rs3.next()) totalMsgsToday = rs3.getInt(1);
             }
         } catch (Exception e) { e.printStackTrace(); }
         int onlineNow = MultiChatServer.onlineUsers.size();
+        long now = System.currentTimeMillis();
+        for (SessionManager.SessionInfo si : SessionManager.getAllSessions()) {
+            if (now - si.lastPollTime < 5000) {
+                onlineNow++;
+            }
+        }
         sendJson(ex, 200, "{\"totalUsers\":" + totalUsers + ",\"totalRooms\":" + totalRooms
                 + ",\"totalMsgsToday\":" + totalMsgsToday + ",\"onlineNow\":" + onlineNow + "}");
     }
@@ -306,6 +333,9 @@ public class HttpServerHandler {
         String room  = getQueryParam(query, "room");
         String sinceStr = getQueryParam(query, "since");
         if (room == null || room.isEmpty()) { sendJson(ex, 400, "{\"error\":\"Thiếu room\"}"); return; }
+
+        si.currentRoom = room;
+        si.lastPollTime = System.currentTimeMillis();
 
         int sinceSeq = 0;
         try { if (sinceStr != null) sinceSeq = Integer.parseInt(sinceStr); } catch (NumberFormatException ignored) {}
@@ -383,7 +413,16 @@ public class HttpServerHandler {
             for (ClientHandler h : r.clients) {
                 if (!first) sb.append(",");
                 first = false;
-                sb.append("\"").append(escapeJson(h.getUsername())).append("\"");
+                sb.append("\"").append(escapeJson(h.getUsername() + " (App)")).append("\"");
+            }
+            
+            long now = System.currentTimeMillis();
+            for (SessionManager.SessionInfo si : SessionManager.getAllSessions()) {
+                if (room.equals(si.currentRoom) && (now - si.lastPollTime < 5000)) {
+                    if (!first) sb.append(",");
+                    first = false;
+                    sb.append("\"").append(escapeJson(si.username + " (Web)")).append("\"");
+                }
             }
         }
         sb.append("]");
@@ -404,6 +443,7 @@ public class HttpServerHandler {
         if (si == null) { sendJson(ex, 401, "{\"error\":\"Chưa đăng nhập\"}"); return; }
         Map<String, String> body = parseFormBody(ex);
         String room = body.getOrDefault("room", "").trim();
+        si.currentRoom = null;
         server.log("[Web] " + si.username + " đã rời phòng: " + room);
         sendJson(ex, 200, "{\"success\":true}");
     }

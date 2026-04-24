@@ -382,7 +382,7 @@
         const members = await r.json();
         const list = document.getElementById('memberList');
         if (members.length === 0) {
-          list.innerHTML = '<div style="color:#475569;font-size:0.8rem;padding:8px">Không có TCP client</div>'; return;
+          list.innerHTML = '<div style="color:#475569;font-size:0.8rem;padding:8px">Phòng đang trống</div>'; return;
         }
         list.innerHTML = members.map(m => `
           <div class="member-item">
