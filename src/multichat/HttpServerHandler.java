@@ -167,6 +167,12 @@ public class HttpServerHandler {
     }
 
     private void apiRooms(HttpExchange ex) throws IOException {
+        SessionManager.SessionInfo si = getSession(ex);
+        if (si != null) {
+            si.currentRoom = null; // Ở sảnh thì không thuộc phòng nào
+            si.lastPollTime = System.currentTimeMillis();
+        }
+        
         StringBuilder sb = new StringBuilder("[");
         try (Connection conn = DBConnection.getConnection()) {
             if (conn != null) {
