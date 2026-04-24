@@ -203,9 +203,10 @@ public class HttpServerHandler {
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
         for (ClientHandler h : MultiChatServer.onlineUsers) {
+            if (h.getUsername().equals("Khách")) continue;
             if (!first) sb.append(",");
             first = false;
-            String uname = escapeJson(h.getUsername());
+            String uname = escapeJson(h.getUsername() + " (App)");
             String room = escapeJson(h.getCurrentRoom() != null ? h.getCurrentRoom() : "Đang chọn phòng");
             sb.append("{\"username\":\"").append(uname)
               .append("\",\"room\":\"").append(room).append("\"}");
@@ -251,7 +252,12 @@ public class HttpServerHandler {
                 if (rs3.next()) totalMsgsToday = rs3.getInt(1);
             }
         } catch (Exception e) { e.printStackTrace(); }
-        int onlineNow = MultiChatServer.onlineUsers.size();
+        int onlineNow = 0;
+        for (ClientHandler h : MultiChatServer.onlineUsers) {
+            if (!h.getUsername().equals("Khách")) {
+                onlineNow++;
+            }
+        }
         long now = System.currentTimeMillis();
         for (SessionManager.SessionInfo sessionInfo : SessionManager.getAllSessions()) {
             if (now - sessionInfo.lastPollTime < 5000) {
