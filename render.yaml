@@ -39,7 +39,5 @@ services:
   # PostgreSQL Database
   - type: pserv
     name: multichat-db
-    version: 15
     plan: free
     ipAllowList: []
-    dataCenter: oregon
