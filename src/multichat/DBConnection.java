@@ -33,7 +33,21 @@ public class DBConnection {
             if ("postgresql".equalsIgnoreCase(DB_TYPE)) {
                 // PostgreSQL connection
                 Class.forName("org.postgresql.Driver");
-                url = "jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                String sslMode = System.getenv("DB_SSL_MODE");
+                if (sslMode == null || sslMode.trim().isEmpty()) {
+                    if ("localhost".equalsIgnoreCase(DB_HOST) || "127.0.0.1".equalsIgnoreCase(DB_HOST) || "db".equalsIgnoreCase(DB_HOST) || "multichat-db".equalsIgnoreCase(DB_HOST)) {
+                        sslMode = "disable";
+                    } else {
+                        sslMode = "require";
+                    }
+                }
+                
+                if (!"disable".equalsIgnoreCase(sslMode)) {
+                    url = "jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/" + DB_NAME + "?sslmode=" + sslMode;
+                } else {
+                    url = "jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                }
+                
                 System.out.println("[DB] Connecting to PostgreSQL: " + url.replace(DB_PASS, "***"));
                 conn = DriverManager.getConnection(url, DB_USER, DB_PASS);
             } else {

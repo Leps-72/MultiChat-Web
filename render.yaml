@@ -11,6 +11,8 @@ services:
         value: 8080
       - key: DB_TYPE
         value: postgresql
+      - key: DB_SSL_MODE
+        value: require
       - key: DB_HOST
         fromDatabase:
           name: multichat-db
