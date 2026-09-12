@@ -139,12 +139,22 @@ public class MultiChatServer {
             if (c != null) { c.close(); log("[OK] Kết nối Database thành công!"); return; }
         } catch (Exception ignored) {}
 
-        // Nếu không kết nối được, dùng Scanner để nhập từ console
-        System.out.print("[CONFIG] Nhập địa chỉ SQL Server (Enter để dùng mặc định 'LEPS'): ");
-        Scanner sc = new Scanner(System.in);
-        String input = sc.nextLine().trim();
-        if (!input.isEmpty()) {
-            DBConnection.setDatabaseConfig(input, "1433", "multichat", "sa", "12345");
+        // Nếu không kết nối được và ở chế độ interactive, hỗ trợ nhập từ console
+        try {
+            if (System.console() != null) {
+                System.out.print("[CONFIG] Nhập địa chỉ SQL Server (Enter để dùng mặc định 'LEPS'): ");
+                Scanner sc = new Scanner(System.in);
+                if (sc.hasNextLine()) {
+                    String input = sc.nextLine().trim();
+                    if (!input.isEmpty()) {
+                        DBConnection.setDatabaseConfig(input, "1433", "multichat", "sa", "12345");
+                    }
+                }
+            } else {
+                log("[WARNING] Chưa thể kết nối Database và đang ở chế độ non-interactive (Render/Docker). Hãy kiểm tra lại DB_HOST, DB_NAME, DB_USER, DB_PASS trên Render Dashboard.");
+            }
+        } catch (Exception e) {
+            log("[WARNING] Không thể đọc cấu hình DB từ console: " + e.getMessage());
         }
     }
 

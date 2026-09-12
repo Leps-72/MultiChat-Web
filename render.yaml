@@ -9,6 +9,8 @@ services:
     envVars:
       - key: PORT
         value: 8080
+      - key: DB_TYPE
+        value: postgresql
       - key: DB_HOST
         fromDatabase:
           name: multichat-db
