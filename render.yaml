@@ -12,7 +12,7 @@ services:
       - key: DB_TYPE
         value: postgresql
       - key: DB_SSL_MODE
-        value: require
+        value: prefer
       - key: DB_HOST
         fromDatabase:
           name: multichat-db
