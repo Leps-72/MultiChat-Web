@@ -219,15 +219,50 @@ public class MultiChatServer {
     public void loadRoomsFromDB() {
         rooms.clear();
         try (Connection conn = DBConnection.getConnection()) {
-            if (conn == null) return;
-            ResultSet rs = conn.createStatement().executeQuery("SELECT room_name FROM rooms");
-            while (rs.next()) {
-                String name = rs.getString("room_name");
-                rooms.put(name, new Room(name));
+            if (conn == null) {
+                fallbackDefaultRooms();
+                return;
+            }
+            try {
+                ResultSet rs = conn.createStatement().executeQuery("SELECT room_name FROM rooms");
+                while (rs.next()) {
+                    String name = rs.getString("room_name");
+                    rooms.put(name, new Room(name));
+                }
+            } catch (SQLException sqle) {
+                log("[DB] Bảng 'rooms' chưa tồn tại. Tự động khởi tạo cấu trúc bảng Database...");
+                initializeSchema(conn);
+                ResultSet rs = conn.createStatement().executeQuery("SELECT room_name FROM rooms");
+                while (rs.next()) {
+                    String name = rs.getString("room_name");
+                    rooms.put(name, new Room(name));
+                }
             }
             log("[HỆ THỐNG] Đã đồng bộ " + rooms.size() + " phòng từ Database.");
         } catch (Exception e) {
             log("[ERROR] loadRoomsFromDB: " + e.getMessage());
+            fallbackDefaultRooms();
+        }
+    }
+
+    private void initializeSchema(Connection conn) {
+        try (Statement st = conn.createStatement()) {
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(50) UNIQUE NOT NULL, password VARCHAR(50) NOT NULL, role VARCHAR(10) NOT NULL DEFAULT 'user');");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS rooms (id SERIAL PRIMARY KEY, room_name VARCHAR(100) UNIQUE NOT NULL, host_name VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS chat_logs (id SERIAL PRIMARY KEY, username VARCHAR(50), room_name VARCHAR(100), message TEXT, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);");
+            st.executeUpdate("INSERT INTO users (username, password, role) VALUES ('admin', '12345', 'admin'), ('huynh', '123', 'user'), ('user1', '123', 'user') ON CONFLICT DO NOTHING;");
+            st.executeUpdate("INSERT INTO rooms (room_name, host_name) VALUES ('General', 'admin'), ('Random', 'admin') ON CONFLICT DO NOTHING;");
+            log("[DB] Khởi tạo các bảng Database thành công qua JDBC!");
+        } catch (Exception e) {
+            log("[ERROR] initializeSchema lỗi: " + e.getMessage());
+        }
+    }
+
+    private void fallbackDefaultRooms() {
+        if (rooms.isEmpty()) {
+            rooms.put("General", new Room("General"));
+            rooms.put("Random", new Room("Random"));
+            log("[DB] Đã tải danh sách phòng mặc định (General, Random).");
         }
     }
 

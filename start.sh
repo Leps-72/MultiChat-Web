@@ -3,7 +3,10 @@ echo "[STARTUP] Waiting for PostgreSQL..."
 sleep 5 # Give some time for DB to be ready, though Render usually provisions it first.
 
 # Execute SQL file to initialize the database
-if [ -n "$DB_HOST" ] && [ -n "$DB_USER" ] && [ -n "$DB_NAME" ]; then
+if [ -n "$DATABASE_URL" ]; then
+    echo "[STARTUP] Initializing database schema using DATABASE_URL..."
+    psql "$DATABASE_URL" -f init_db.sql || echo "[STARTUP] Database already initialized or initialization failed."
+elif [ -n "$DB_HOST" ] && [ -n "$DB_USER" ] && [ -n "$DB_NAME" ]; then
     echo "[STARTUP] Initializing database schema..."
     export PGPASSWORD=$DB_PASS
     if [ "$DB_HOST" != "localhost" ] && [ "$DB_HOST" != "127.0.0.1" ] && [ "$DB_HOST" != "db" ]; then
