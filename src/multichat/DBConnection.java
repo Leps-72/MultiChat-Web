@@ -80,6 +80,21 @@ public class DBConnection {
             return null;
         }
 
+        java.util.List<String> hostsToTry = new java.util.ArrayList<>();
+        if (DB_HOST != null && !DB_HOST.trim().isEmpty()) {
+            hostsToTry.add(DB_HOST.trim());
+            // If DB_HOST is an external Render host (e.g. dpg-xxx-a.singapore-postgres.render.com),
+            // also try the internal Render hostname (dpg-xxx-a)
+            if (DB_HOST.contains(".render.com") && DB_HOST.contains(".")) {
+                String internalHost = DB_HOST.substring(0, DB_HOST.indexOf('.')).trim();
+                if (!internalHost.isEmpty() && !hostsToTry.contains(internalHost)) {
+                    hostsToTry.add(internalHost);
+                }
+            }
+        } else {
+            hostsToTry.add("localhost");
+        }
+
         String envSslMode = System.getenv("DB_SSL_MODE");
         java.util.List<String> modesToTry = new java.util.ArrayList<>();
 
@@ -93,29 +108,31 @@ public class DBConnection {
         if (!modesToTry.contains("require")) modesToTry.add("require");
 
         Exception lastException = null;
-        for (String sslMode : modesToTry) {
-            String url;
-            if (!"disable".equalsIgnoreCase(sslMode)) {
-                url = "jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/" + DB_NAME + "?sslmode=" + sslMode;
-            } else {
-                url = "jdbc:postgresql://" + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-            }
-
-            try {
-                System.out.println("[DB] Connecting to PostgreSQL (sslmode=" + sslMode + "): " + url.replace(DB_PASS != null ? DB_PASS : "", "***"));
-                Connection conn = DriverManager.getConnection(url, DB_USER, DB_PASS);
-                if (conn != null) {
-                    System.out.println("[DB] Connection successful using sslmode=" + sslMode + "!");
-                    return conn;
+        for (String host : hostsToTry) {
+            for (String sslMode : modesToTry) {
+                String url;
+                if (!"disable".equalsIgnoreCase(sslMode)) {
+                    url = "jdbc:postgresql://" + host + ":" + DB_PORT + "/" + DB_NAME + "?sslmode=" + sslMode;
+                } else {
+                    url = "jdbc:postgresql://" + host + ":" + DB_PORT + "/" + DB_NAME;
                 }
-            } catch (Exception e) {
-                lastException = e;
-                System.err.println("[DB WARNING] Connection attempt failed with sslmode=" + sslMode + ": " + e.getMessage());
+
+                try {
+                    System.out.println("[DB] Connecting to PostgreSQL (" + host + ", sslmode=" + sslMode + "): " + url.replace(DB_PASS != null ? DB_PASS : "", "***"));
+                    Connection conn = DriverManager.getConnection(url, DB_USER, DB_PASS);
+                    if (conn != null) {
+                        System.out.println("[DB] Connection successful to " + host + " using sslmode=" + sslMode + "!");
+                        return conn;
+                    }
+                } catch (Exception e) {
+                    lastException = e;
+                    System.err.println("[DB WARNING] Connection attempt failed for " + host + " (sslmode=" + sslMode + "): " + e.getMessage());
+                }
             }
         }
 
-        System.err.println("[ERROR] Database connection error: All SSL/connection attempts failed.");
-        System.err.println("[ERROR] DB_TYPE: " + DB_TYPE + ", Host: " + DB_HOST + ":" + DB_PORT);
+        System.err.println("[ERROR] Database connection error: All SSL/host connection attempts failed.");
+        System.err.println("[ERROR] DB_TYPE: " + DB_TYPE + ", Host(s) tried: " + hostsToTry + ", Port: " + DB_PORT);
         if (lastException != null) {
             lastException.printStackTrace();
         }
