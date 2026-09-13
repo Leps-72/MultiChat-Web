@@ -22,20 +22,24 @@ public class DBConnection {
             try {
                 String cleanUrl = databaseUrl.replace("postgresql://", "http://").replace("postgres://", "http://");
                 URI uri = new URI(cleanUrl);
-                if (DB_HOST == null || DB_HOST.trim().isEmpty()) DB_HOST = uri.getHost();
-                if (DB_PORT == null || DB_PORT.trim().isEmpty()) {
-                    DB_PORT = uri.getPort() > 0 ? String.valueOf(uri.getPort()) : "5432";
+                if (uri.getHost() != null && !uri.getHost().isEmpty()) {
+                    DB_HOST = uri.getHost();
                 }
-                if (DB_NAME == null || DB_NAME.trim().isEmpty()) {
-                    String path = uri.getPath();
-                    if (path != null && path.startsWith("/")) DB_NAME = path.substring(1);
+                if (uri.getPort() > 0) {
+                    DB_PORT = String.valueOf(uri.getPort());
+                } else if (DB_PORT == null || DB_PORT.trim().isEmpty()) {
+                    DB_PORT = "5432";
+                }
+                if (uri.getPath() != null && uri.getPath().startsWith("/")) {
+                    DB_NAME = uri.getPath().substring(1);
                 }
                 if (uri.getUserInfo() != null) {
                     String[] userInfo = uri.getUserInfo().split(":");
-                    if (DB_USER == null || DB_USER.trim().isEmpty()) DB_USER = userInfo[0];
-                    if (userInfo.length > 1 && (DB_PASS == null || DB_PASS.trim().isEmpty())) DB_PASS = userInfo[1];
+                    if (userInfo.length > 0 && !userInfo[0].isEmpty()) DB_USER = userInfo[0];
+                    if (userInfo.length > 1 && !userInfo[1].isEmpty()) DB_PASS = userInfo[1];
                 }
                 DB_TYPE = "postgresql";
+                System.out.println("[DB CONFIG] Applied config from DATABASE_URL -> Host: " + DB_HOST + ", Port: " + DB_PORT + ", DB: " + DB_NAME);
             } catch (Exception e) {
                 System.err.println("[DB CONFIG] Error parsing DATABASE_URL: " + e.getMessage());
             }
@@ -47,6 +51,10 @@ public class DBConnection {
         if (DB_NAME == null || DB_NAME.trim().isEmpty()) DB_NAME = "multichat";
         if (DB_USER == null || DB_USER.trim().isEmpty()) DB_USER = "multichat";
         if (DB_PASS == null || DB_PASS.trim().isEmpty()) DB_PASS = "multichat123";
+
+        if (DB_HOST.toLowerCase().contains("xxxx")) {
+            System.err.println("[DB WARNING] DB_HOST currently contains placeholder 'xxxx'! Please replace it with your actual Render Internal Hostname (e.g. dpg-c1234567890-a) or set DATABASE_URL.");
+        }
     }
 
     // Function to change database config (when running on different machines)
